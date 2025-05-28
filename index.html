@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Group Availability Scheduler</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .user-section {
+            background: #f8f9ff;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 2px solid #e1e8ff;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .input-group input {
+            flex: 1;
+            min-width: 200px;
+            padding: 12px 16px;
+            border: 2px solid #e1e8ff;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 172, 254, 0.3);
+        }
+
+        .calendar-container {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .calendar-nav {
+            background: #f0f4ff;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s ease;
+        }
+
+        .calendar-nav:hover {
+            background: #e1e8ff;
+            transform: scale(1.05);
+        }
+
+        .month-year {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .day-header {
+            text-align: center;
+            font-weight: 700;
+            padding: 12px;
+            color: #666;
+            background: #f8f9ff;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            position: relative;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .day.current-month {
+            background: #ffffff;
+            border-color: #e1e8ff;
+        }
+
+        .day.current-month:hover {
+            transform: scale(1.05);
+            border-color: #4facfe;
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.2);
+        }
+
+        .day.other-month {
+            color: #ccc;
+            background: #f8f9ff;
+        }
+
+        .day.unavailable {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+            border-color: #ff5252;
+        }
+
+        .day.today {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            font-weight: 700;
+        }
+
+        .participants {
+            margin-top: 30px;
+        }
+
+        .participants h3 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 1.3rem;
+        }
+
+        .participant-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .participant-tag {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .remove-participant {
+            background: rgba(255, 255, 255, 0.3);
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: white;
+        }
+
+        .availability-info {
+            background: #e8f5e8;
+            border-left: 4px solid #4caf50;
+            padding: 15px 20px;
+            margin-top: 20px;
+            border-radius: 0 10px 10px 0;
+        }
+
+        .legend {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #ddd;
+        }
+
+        .legend-available {
+            background: white;
+        }
+
+        .legend-unavailable {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+        }
+
+        .legend-today {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        @media (max-width: 768px) {
+            .input-group {
+                flex-direction: column;
+            }
+
+            .calendar-header {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Group Availability Scheduler</h1>
+            <p>Mark the days you're NOT available to find the best dates for everyone</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="user-section">
+                <div class="input-group">
+                    <input type="text" id="nameInput" placeholder="Enter your name">
+                    <button class="btn btn-primary" onclick="addParticipant()">Join Schedule</button>
+                </div>
+            </div>
+
+            <div class="calendar-container">
+                <div class="calendar-header">
+                    <button class="calendar-nav" onclick="changeMonth(-1)">‹</button>
+                    <div class="month-year" id="monthYear"></div>
+                    <button class="calendar-nav" onclick="changeMonth(1)">›</button>
+                </div>
+                
+                <div class="calendar" id="calendar"></div>
+
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color legend-available"></div>
+                        <span>Available</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color legend-unavailable"></div>
+                        <span>Unavailable</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color legend-today"></div>
+                        <span>Today</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="participants">
+                <h3>Participants</h3>
+                <div class="participant-list" id="participantList"></div>
+                <div class="availability-info" id="availabilityInfo" style="display: none;">
+                    Click on dates to mark them as unavailable. Others can see which days work for everyone!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentDate = new Date();
+        let currentParticipant = null;
+        let participants = {};
+        let unavailableDates = {};
+
+        const monthNames = ["January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"];
+        const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+        function initCalendar() {
+            renderCalendar();
+            updateParticipantList();
+        }
+
+        function renderCalendar() {
+            const calendar = document.getElementById('calendar');
+            const monthYear = document.getElementById('monthYear');
+            
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            
+            monthYear.textContent = `${monthNames[month]} ${year}`;
+            
+            calendar.innerHTML = '';
+            
+            // Add day headers
+            dayNames.forEach(day => {
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'day-header';
+                dayHeader.textContent = day;
+                calendar.appendChild(dayHeader);
+            });
+            
+            // Get first day of month and number of days
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const daysInPrevMonth = new Date(year, month, 0).getDate();
+            
+            // Add previous month's trailing days
+            for (let i = firstDay - 1; i >= 0; i--) {
+                const day = document.createElement('div');
+                day.className = 'day other-month';
+                day.textContent = daysInPrevMonth - i;
+                calendar.appendChild(day);
+            }
+            
+            // Add current month's days
+            const today = new Date();
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayElement = document.createElement('div');
+                dayElement.className = 'day current-month';
+                dayElement.textContent = day;
+                
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                
+                // Check if it's today
+                if (year === today.getFullYear() && month === today.getMonth() && day === today.getDate()) {
+                    dayElement.classList.add('today');
+                }
+                
+                // Check if unavailable for current participant
+                if (currentParticipant && unavailableDates[currentParticipant] && unavailableDates[currentParticipant].includes(dateStr)) {
+                    dayElement.classList.add('unavailable');
+                }
+                
+                dayElement.addEventListener('click', () => toggleDate(dateStr, dayElement));
+                calendar.appendChild(dayElement);
+            }
+            
+            // Add next month's leading days
+            const totalCells = calendar.children.length - 7; // Subtract day headers
+            const remainingCells = 42 - totalCells; // 6 rows * 7 days - day headers
+            for (let day = 1; day <= remainingCells; day++) {
+                const dayElement = document.createElement('div');
+                dayElement.className = 'day other-month';
+                dayElement.textContent = day;
+                calendar.appendChild(dayElement);
+            }
+        }
+
+        function changeMonth(direction) {
+            currentDate.setMonth(currentDate.getMonth() + direction);
+            renderCalendar();
+        }
+
+        function addParticipant() {
+            const nameInput = document.getElementById('nameInput');
+            const name = nameInput.value.trim();
+            
+            if (!name) {
+                alert('Please enter your name');
+                return;
+            }
+            
+            if (participants[name]) {
+                alert('Participant already exists');
+                return;
+            }
+            
+            participants[name] = true;
+            unavailableDates[name] = [];
+            currentParticipant = name;
+            nameInput.value = '';
+            
+            updateParticipantList();
+            renderCalendar();
+            
+            document.getElementById('availabilityInfo').style.display = 'block';
+        }
+
+        function removeParticipant(name) {
+            delete participants[name];
+            delete unavailableDates[name];
+            
+            if (currentParticipant === name) {
+                currentParticipant = null;
+            }
+            
+            updateParticipantList();
+            renderCalendar();
+            
+            if (Object.keys(participants).length === 0) {
+                document.getElementById('availabilityInfo').style.display = 'none';
+            }
+        }
+
+        function updateParticipantList() {
+            const participantList = document.getElementById('participantList');
+            participantList.innerHTML = '';
+            
+            Object.keys(participants).forEach(name => {
+                const tag = document.createElement('div');
+                tag.className = 'participant-tag';
+                if (name === currentParticipant) {
+                    tag.style.background = 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)';
+                }
+                
+                tag.innerHTML = `
+                    <span onclick="selectParticipant('${name}')" style="cursor: pointer;">${name}</span>
+                    <button class="remove-participant" onclick="removeParticipant('${name}')" title="Remove participant">×</button>
+                `;
+                participantList.appendChild(tag);
+            });
+        }
+
+        function selectParticipant(name) {
+            currentParticipant = name;
+            updateParticipantList();
+            renderCalendar();
+        }
+
+        function toggleDate(dateStr, dayElement) {
+            if (!currentParticipant) {
+                alert('Please add yourself as a participant first');
+                return;
+            }
+            
+            if (!unavailableDates[currentParticipant]) {
+                unavailableDates[currentParticipant] = [];
+            }
+            
+            const dateIndex = unavailableDates[currentParticipant].indexOf(dateStr);
+            if (dateIndex > -1) {
+                // Remove date (make available)
+                unavailableDates[currentParticipant].splice(dateIndex, 1);
+                dayElement.classList.remove('unavailable');
+            } else {
+                // Add date (make unavailable)
+                unavailableDates[currentParticipant].push(dateStr);
+                dayElement.classList.add('unavailable');
+            }
+        }
+
+        // Initialize calendar on page load
+        document.addEventListener('DOMContentLoaded', initCalendar);
+
+        // Handle Enter key in name input
+        document.getElementById('nameInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addParticipant();
+            }
+        });
+    </script>
+</body>
+</html>
