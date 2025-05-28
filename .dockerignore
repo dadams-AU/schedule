@@ -1,0 +1,8 @@
+.git/
+.github/
+Dockerfile # This is the frontend Dockerfile
+*.md
+
+# Backend specific ignores
+backend/node_modules/
+backend/.env 

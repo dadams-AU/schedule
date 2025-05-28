@@ -308,14 +308,28 @@
         </div>
         
         <div class="main-content">
+            <div class="project-section" style="margin-bottom: 30px; background: #f8f9ff; border-radius: 15px; padding: 25px; border: 2px solid #e1e8ff;">
+                <h2>Projects</h2>
+                <div class="input-group" style="margin-top: 15px; margin-bottom:15px;">
+                    <input type="text" id="projectNameInput" placeholder="New project name">
+                    <button class="btn btn-primary" id="createProjectBtn">Create Project</button>
+                </div>
+                <div class="input-group" style="margin-bottom:10px;">
+                     <select id="projectSelector" style="flex: 1; padding: 12px 16px; border: 2px solid #e1e8ff; border-radius: 10px; font-size: 16px;">
+                        <option value="">-- Select a Project --</option>
+                    </select>
+                </div>
+                <div id="projectMessage" style="margin-top: 10px; font-size: 14px;"></div>
+            </div>
+
             <div class="user-section">
                 <div class="input-group">
                     <input type="text" id="nameInput" placeholder="Enter your name">
-                    <button class="btn btn-primary" onclick="addParticipant()">Join Schedule</button>
+                    <button class="btn btn-primary" id="setUserBtn">Set Current User</button> 
                 </div>
             </div>
 
-            <div class="calendar-container">
+            <div class="calendar-container" style="display: none;">
                 <div class="calendar-header">
                     <button class="calendar-nav" onclick="changeMonth(-1)">‹</button>
                     <div class="month-year" id="monthYear"></div>
@@ -344,7 +358,7 @@
                 <h3>Participants</h3>
                 <div class="participant-list" id="participantList"></div>
                 <div class="availability-info" id="availabilityInfo" style="display: none;">
-                    Click on dates to mark them as unavailable. Others can see which days work for everyone!
+                Select a project and set your name. Then, click on dates to mark them as unavailable for that project.
                 </div>
             </div>
         </div>
@@ -353,28 +367,149 @@
     <script>
         let currentDate = new Date();
         let currentParticipant = null;
-        let participants = {};
-        let unavailableDates = {};
+        // Old state removed:
+        // let participants = {}; 
+        // let unavailableDates = {}; 
+        
+        let selectedProjectId = null;
+        let projectUnavailability = []; // Stores { user_name: "name", unavailable_date: "YYYY-MM-DD" }
 
         const monthNames = ["January", "February", "March", "April", "May", "June",
             "July", "August", "September", "October", "November", "December"];
         const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-        function initCalendar() {
-            renderCalendar();
-            updateParticipantList();
+        // --- Project Management Functions ---
+        async function fetchProjects() {
+            const projectSelector = document.getElementById('projectSelector');
+            const projectMessage = document.getElementById('projectMessage');
+            projectMessage.textContent = 'Loading projects...';
+            try {
+                const response = await fetch('/api/projects');
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({})); // Try to parse error, default if not JSON
+                    throw new Error(`HTTP error! status: ${response.status}, ${errData.error || response.statusText}`);
+                }
+                const projects = await response.json();
+                projectSelector.innerHTML = '<option value="">-- Select a Project --</option>'; // Clear existing options
+                projects.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = project.id;
+                    option.textContent = project.name;
+                    projectSelector.appendChild(option);
+                });
+                projectMessage.textContent = projects.length > 0 ? 'Projects loaded. Select one to continue.' : 'No projects found. Create one to start!';
+            } catch (error) {
+                console.error('Error fetching projects:', error);
+                projectMessage.textContent = `Error fetching projects: ${error.message}`;
+                projectSelector.innerHTML = '<option value="">-- Error Loading Projects --</option>';
+            }
+        }
+
+        async function createProject() {
+            const projectNameInput = document.getElementById('projectNameInput');
+            const projectMessage = document.getElementById('projectMessage');
+            const createProjectBtn = document.getElementById('createProjectBtn');
+            const projectName = projectNameInput.value.trim();
+
+            if (!projectName) {
+                projectMessage.textContent = 'Please enter a project name.';
+                return;
+            }
+
+            projectMessage.textContent = 'Creating project...';
+            createProjectBtn.disabled = true;
+
+            try {
+                const response = await fetch('/api/projects', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: projectName })
+                });
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                }
+                projectNameInput.value = ''; 
+                projectMessage.textContent = 'Project created successfully!';
+                await fetchProjects(); 
+            } catch (error) {
+                console.error('Error creating project:', error);
+                projectMessage.textContent = `Error creating project: ${error.message}`;
+            } finally {
+                createProjectBtn.disabled = false;
+            }
+        }
+        
+        // --- User and Calendar Logic ---
+        async function loadProjectCalendar() {
+            const calendarDiv = document.getElementById('calendar');
+            const monthYearDiv = document.getElementById('monthYear');
+            const calendarContainer = document.querySelector('.calendar-container');
+            const availabilityInfo = document.getElementById('availabilityInfo');
+            const projectMessage = document.getElementById('projectMessage'); // Use this for loading/error messages too
+
+            if (!selectedProjectId) {
+                calendarDiv.innerHTML = '';
+                monthYearDiv.textContent = '';
+                updateParticipantList([]);
+                projectUnavailability = [];
+                availabilityInfo.style.display = 'none';
+                return;
+            }
+            
+            calendarContainer.style.opacity = '0.5'; // Indicate loading on the whole calendar section
+            projectMessage.textContent = `Loading calendar for project...`;
+            calendarDiv.innerHTML = '<p style="text-align:center; padding:20px;">Loading calendar...</p>'; // Placeholder while loading
+
+            try {
+                // Fetch unavailability data
+                const unavailResponse = await fetch(`/api/projects/${selectedProjectId}/unavailability`);
+                if (!unavailResponse.ok) {
+                    const errData = await unavailResponse.json().catch(() => ({}));
+                    throw new Error(`Failed to fetch unavailability: ${errData.error || unavailResponse.statusText} (${unavailResponse.status})`);
+                }
+                projectUnavailability = await unavailResponse.json();
+
+                // Fetch participants data
+                const participantsResponse = await fetch(`/api/projects/${selectedProjectId}/participants`);
+                if (!participantsResponse.ok) {
+                    const errData = await participantsResponse.json().catch(() => ({}));
+                    throw new Error(`Failed to fetch participants: ${errData.error || participantsResponse.statusText} (${participantsResponse.status})`);
+                }
+                const participantsArray = await participantsResponse.json();
+                
+                updateParticipantList(participantsArray); // Update participant list UI
+                renderCalendar(); // Now render with the fetched data
+
+                availabilityInfo.style.display = 'block';
+                projectMessage.textContent = `Calendar loaded.`; // Clear loading message or set success
+
+            } catch (error) {
+                console.error('Error loading project calendar:', error);
+                calendarDiv.innerHTML = `<p style="color: red; text-align: center;">Error loading calendar: ${error.message}</p>`;
+                updateParticipantList([]); // Clear participant list on error
+                projectUnavailability = []; // Clear data
+                projectMessage.textContent = `Error: ${error.message}`;
+            } finally {
+                calendarContainer.style.opacity = '1'; // Restore opacity
+            }
         }
 
         function renderCalendar() {
             const calendar = document.getElementById('calendar');
             const monthYear = document.getElementById('monthYear');
             
+            if (!selectedProjectId) { // Don't render if no project selected
+                calendar.innerHTML = '';
+                monthYear.textContent = 'Please select a project';
+                return;
+            }
+            
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
             
             monthYear.textContent = `${monthNames[month]} ${year}`;
-            
-            calendar.innerHTML = '';
+            calendar.innerHTML = ''; // Clear previous calendar
             
             // Add day headers
             dayNames.forEach(day => {
@@ -391,10 +526,10 @@
             
             // Add previous month's trailing days
             for (let i = firstDay - 1; i >= 0; i--) {
-                const day = document.createElement('div');
-                day.className = 'day other-month';
-                day.textContent = daysInPrevMonth - i;
-                calendar.appendChild(day);
+                const dayElement = document.createElement('div');
+                dayElement.className = 'day other-month';
+                dayElement.textContent = daysInPrevMonth - i;
+                calendar.appendChild(dayElement);
             }
             
             // Add current month's days
@@ -411,9 +546,29 @@
                     dayElement.classList.add('today');
                 }
                 
-                // Check if unavailable for current participant
-                if (currentParticipant && unavailableDates[currentParticipant] && unavailableDates[currentParticipant].includes(dateStr)) {
+                // Check if unavailable for ANY participant in the current project
+                const isUnavailableForAny = projectUnavailability.some(ua => ua.unavailable_date === dateStr);
+                if (isUnavailableForAny) {
                     dayElement.classList.add('unavailable');
+                     // Add a tooltip to show who is unavailable
+                    const unavailableUsers = projectUnavailability
+                        .filter(ua => ua.unavailable_date === dateStr)
+                        .map(ua => ua.user_name);
+                    dayElement.title = `Unavailable: ${unavailableUsers.join(', ')}`;
+                } else {
+                    dayElement.title = 'Available'; // Default tooltip
+                }
+
+                // Highlight if currentParticipant has marked this date
+                if (currentParticipant && projectUnavailability.some(ua => ua.unavailable_date === dateStr && ua.user_name === currentParticipant)) {
+                    // Using a more distinct style for "my" selection
+                    dayElement.style.borderColor = "#007bff"; // Example: blue border
+                    dayElement.style.boxShadow = "0 0 0 1px #007bff inset"; // Inner shadow for better visibility
+                    dayElement.title += ` (Your selection)`;
+                } else {
+                    // Reset border if not selected by current user (or ensure it's the default from CSS)
+                    dayElement.style.borderColor = dayElement.classList.contains('current-month') ? '#e1e8ff' : 'transparent'; // Keep default border for current month days
+                    dayElement.style.boxShadow = 'none'; // Remove any specific shadow
                 }
                 
                 dayElement.addEventListener('click', () => toggleDate(dateStr, dayElement));
@@ -422,7 +577,7 @@
             
             // Add next month's leading days
             const totalCells = calendar.children.length - 7; // Subtract day headers
-            const remainingCells = 42 - totalCells; // 6 rows * 7 days - day headers
+            const remainingCells = (totalCells <= 35 ? 35 : 42) - totalCells; // Aim for 5 or 6 rows to keep calendar size consistent
             for (let day = 1; day <= remainingCells; day++) {
                 const dayElement = document.createElement('div');
                 dayElement.className = 'day other-month';
