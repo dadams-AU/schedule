@@ -280,6 +280,19 @@
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
         }
 
+        .weekend {
+            background-color: #f0f0f0 !important; /* Added !important to ensure override */
+            color: #aaa !important;  /* Added !important to ensure override */
+            cursor: not-allowed !important; /* Added !important to ensure override */
+            pointer-events: none; 
+        }
+        
+        .weekend:hover { 
+            transform: none;
+            border-color: transparent; 
+            box-shadow: none;
+        }
+
         @media (max-width: 768px) {
             .input-group {
                 flex-direction: column;
@@ -405,6 +418,12 @@
                 dayElement.textContent = day;
                 
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const currentDateObj = new Date(year, month, day);
+                const dayOfWeek = currentDateObj.getDay();
+
+                if (dayOfWeek === 0 || dayOfWeek === 6) { // 0 for Sunday, 6 for Saturday
+                    dayElement.classList.add('weekend');
+                }
                 
                 // Check if it's today
                 if (year === today.getFullYear() && month === today.getMonth() && day === today.getDate()) {
@@ -506,6 +525,13 @@
             if (!currentParticipant) {
                 alert('Please add yourself as a participant first');
                 return;
+            }
+
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const clickedDate = new Date(year, month - 1, day); // month is 0-indexed in Date
+            if (clickedDate.getDay() === 0 || clickedDate.getDay() === 6) { // 0 for Sunday, 6 for Saturday
+                // alert("Weekends are automatically excluded and cannot be marked."); // Optional feedback
+                return; 
             }
             
             if (!unavailableDates[currentParticipant]) {
