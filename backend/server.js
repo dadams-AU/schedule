@@ -171,23 +171,22 @@ app.get('/api/projects/:projectId/participants', async (req, res) => {
 const PORT = process.env.PORT || 3001;
 
 // Test DB connection, sync models, and start server
-db.sequelize.authenticate()
-  .then(() => {
-    console.log('Database connection has been established successfully.');
-    // Sync models with the database
-    // { alter: true } checks the current state of the table in the database (which columns it has, what are their data types, etc),
-    // and then performs the necessary changes in the table to make it match the model.
-    // Avoid using { force: true } in production as it will drop tables.
-    return db.sequelize.sync({ alter: true });
-  })
-  .then(() => {
-    console.log('All models were synchronized successfully.');
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}.`);
+async function startServer() {
+  try {
+    console.log("📦 Connecting to database...");
+    await db.sequelize.authenticate();
+    console.log("✅ Database connected");
+
+    await db.sequelize.sync({ alter: true });
+    console.log("✅ Models synced");
+
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Server running on port ${PORT}`);
     });
-  })
-  .catch(err => {
-    console.error('Unable to connect to the database or sync models:', err);
-    // Optionally, exit the process if the database connection is critical
-    // process.exit(1); 
-  });
+  } catch (err) {
+    console.error("❌ Startup failed:", err);
+    process.exit(1);
+  }
+}
+
+startServer();

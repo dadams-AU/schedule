@@ -14,47 +14,21 @@ services:
 
   backend:
     build:
-      context: ./backend # Path to the backend's Dockerfile and code
-      dockerfile: Dockerfile # Name of the backend's Dockerfile
+      context: ./backend
+      dockerfile: Dockerfile
     ports:
-      - "3001:3001" # Map host port 3001 to container port 3001
+      - "3001:3001"
+    env_file:
+      - .env # Load environment variables from .env file
     environment:
       NODE_ENV: development
       PORT: 3001
-      DB_HOST: db # Service name of the postgres container
-      DB_USERNAME: ${DB_USERNAME:-postgres} # Use host env var or default
-      DB_PASSWORD: ${DB_PASSWORD:-yoursecretpassword} # Use host env var or default
-      DB_NAME: ${DB_NAME:-calendar_dev} # Use host env var or default
-      DB_PORT: 5432
-    depends_on:
-      db:
-        condition: service_healthy # Wait for db to be healthy
     volumes:
-      - ./backend:/usr/src/app/backend # Mount code for development (optional, good for local dev)
-      - /usr/src/app/backend/node_modules # Anonymous volume to prevent host node_modules overwriting container's
+      - ./backend:/usr/src/app/backend
+      - /usr/src/app/backend/node_modules
     networks:
       - calendar_network
 
-  db:
-    image: postgres:15-alpine # Or your preferred PostgreSQL version
-    ports:
-      - "5432:5432" # Map host port 5432 to container port 5432 (for direct access if needed)
-    environment:
-      POSTGRES_USER: ${DB_USERNAME:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-yoursecretpassword}
-      POSTGRES_DB: ${DB_NAME:-calendar_dev}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data # Persist database data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_NAME:-calendar_dev}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - calendar_network
-
-volumes:
-  postgres_data: # Define the named volume for data persistence
 
 networks:
   calendar_network: # Define the custom network
