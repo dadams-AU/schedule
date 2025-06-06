@@ -129,3 +129,34 @@ This application is designed to be deployed using Docker and is well-suited for 
 *   **Port Exposure:** The backend's port (3001) does not need to be explicitly exposed to the internet by Cloudron, as Nginx (frontend) will proxy requests to it. Only the Nginx port (80) needs to be exposed.
 
 The application structure is generally compatible with Cloudron's Docker-based deployment model.
+
+## Deploying to Cloudron
+
+This application is configured for deployment on Cloudron using the LAMP stack (Apache, PHP).
+
+Key components for Cloudron deployment:
+
+*   **`CloudronManifest.json`**: Defines the application for the Cloudron platform, including necessary addons, environment variables, and start scripts.
+*   **`apache_config/apache.conf`**: Custom Apache configuration. It serves static files from the `public` directory and proxies API requests from `/api/` to the backend Node.js application.
+*   **`start.sh`**: Script used by Cloudron to start the Apache server and the backend Node.js application.
+*   **`public/`**: This directory contains the static frontend assets (e.g., `index.html`).
+*   **`backend/Dockerfile`**: Defines the environment for the Node.js backend.
+
+**Prerequisites for Cloudron Deployment:**
+
+*   A Cloudron instance.
+*   The Cloudron CLI installed and configured if you are deploying from your local machine.
+
+**Build & Deploy Steps (General Guide):**
+
+1.  **Ensure your backend is configured to use environment variables** for any necessary services (like database connections). These can be set in the Cloudron application's settings or within the `CloudronManifest.json`.
+2.  **Install the application on Cloudron:**
+    *   You can push this repository to a Git service (like Gitea, GitLab, GitHub) that your Cloudron instance can connect to.
+    *   Alternatively, you can use the Cloudron CLI to push the application directly:
+        ```bash
+        cloudron push --app <your-app-domain-on-cloudron>
+        ```
+3.  During the first installation, Cloudron will build the backend Docker image (if not already built and pushed to a registry specified in the manifest, which is not the case here) and set up the LAMP environment according to the manifest.
+4.  The `start.sh` script will be executed to run Apache and the backend service.
+
+Refer to the official Cloudron documentation for more detailed deployment instructions.

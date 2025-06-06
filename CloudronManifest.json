@@ -1,0 +1,29 @@
+{
+  "title": "My Cloudron App",
+  "tagline": "A brief description of my app",
+  "version": "1.0.0",
+  "healthCheckPath": "/api/",
+  "httpPort": 80,
+  "addons": {
+    "localstorage": {}
+  },
+  "lamp": {
+    "stack": "apache-php-latest",
+    "documentRoot": "public",
+    "phpVersion": "8.2",
+    "apacheConfig": "apache_config/apache.conf"
+  },
+  "scripts": {
+    "start": "start.sh"
+  },
+  "env": {
+    "PORT": "3001",
+    "NODE_ENV": "production"
+  },
+  "website": "https://your-app-website.com",
+  "contactEmail": "your-email@example.com",
+  "developer": {
+    "name": "Your Name/Company",
+    "url": "https://your-website.com"
+  }
+}
